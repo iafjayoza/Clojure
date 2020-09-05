@@ -1,0 +1,1536 @@
+Clojure functions -
+
+1. some -
+
+(some pred coll)
+
+Returns the first logical true value of (pred x) for any x in coll,
+else nil. 
+
+ex. 
+
+;; 2 is even, so `some` stops there, 3 and 4 are never tested
+(some even? '(1 2 3 4))
+;;=> true
+
+;; they are all odd, so not true, i.e. nil
+(some even? '(1 3 5 7))
+;;=> nil
+
+(some #(= 5 %) [1 2 3 4 5])
+;;=> true
+
+(some #(= 5 %) [6 7 8 9 10])
+;;=> nil
+
+2. some? -
+
+(some? x)
+
+Returns true if x is not nil, false otherwise.
+
+ex.
+
+user> (some? nil)
+;; => false
+
+user> (some? 42)
+;; => true
+user> (some? false)
+;; => true
+user> (some? [])
+;; => true
+user> (some? {})
+;; => true
+user> (some? '())
+;; => true
+
+3. some->
+
+(some-> expr & forms)
+
+When expr is not nil, threads it into the first form (via ->),
+and when that result is not nil, through the next etc
+
+ex.
+
+(prn (some-> {:x 1 :y 5}
+             (:y)
+             (- 11)))
+             
+value of :y will be passed as first argument in next function so (- 5 11) will return -6 as result.
+
+
+4. some->>
+
+(some->> expr & forms)
+
+When expr is not nil, threads it into the first form (via ->>),
+and when that result is not nil, through the next etc
+
+ex.
+
+(prn (some->> {:x 1 :y 5}
+              (:y)
+              (- 8)))
+              
+value of :y will be passed as second argument in next function so (- 8 5) will return 3 as result.
+
+5. if-some
+
+(if-some bindings then)(if-some bindings then else & oldform)
+
+bindings => binding-form test
+  If test is not nil, evaluates then with binding-form bound to the
+ value of test, if not, yields else
+ 
+ex.
+
+(if-some [a 10]    :true :false)   ; => :true
+(if-some [a true]  :true :false)   ; => :true
+(if-some [a false] :true :false)   ; => :true
+(if-some [a nil]   :true :false)   ; => :false
+
+;; for comparison
+(if-let [a 10]     :true :false)   ; => :true
+(if-let [a true]   :true :false)   ; => :true 
+(if-let [a false]  :true :false)   ; => :false
+(if-let [a nil]    :true :false)   ; => :false
+
+
+6. when-some
+
+(when-some bindings & body)
+
+bindings => binding-form test
+  When test is not nil, evaluates body with binding-form bound to the
+ value of test
+ 
+ex.
+
+user=> (when-some [x "Hello"] (println x))
+"Hello"
+nil
+
+user=> (when-some [x nil] (println x))
+nil
+
+;; In contrast with when-let, when-some evaluates the body for false values:
+(when-some [x false] {:x x})  ; => {:x false}
+
+;; While when-let suppresses evaluation for false values:
+(when-let [x false] {:x x})   ; => nil
+
+
+7.map
+
+(map f)(map f coll)(map f c1 c2)(map f c1 c2 c3)(map f c1 c2 c3 & colls)
+
+Returns a lazy sequence consisting of the result of applying f to
+the set of first items of each coll, followed by applying f to the
+set of second items in each coll, until any one of the colls is
+exhausted.  Any remaining items in other colls are ignored. Function
+f should accept number-of-colls arguments. Returns a transducer when
+no collection is provided.
+
+ex.
+
+(map + [1 2 3] [4 5 6])
+;;=> (5 7 9)
+
+;; map sends key-value pairs from a hash-map
+(map #(vector (first %) (* 2 (second %)))
+            {:a 1 :b 2 :c 3})
+;;=> ([:a 2] [:b 4] [:c 6])
+
+user=> (map {2 "two" 3 "three"} [5 3 2])
+(nil "three" "two")
+
+;; then use (filter identity... to remove the nils
+user=> (filter identity (map {2 "two" 3 "three"} [5 3 2]))
+("three" "two")
+
+
+8. map?
+
+Return true if x implements IPersistentMap
+
+(map? {:a 1 :b 2 :c 3})
+;;=> true
+
+(map? (hash-map :a 1 :b 2))
+;;=> true
+
+(map? (sorted-map :a 1 :b 2))
+;;=> true
+
+(map? (array-map :a 1 :b 2))
+;;=> true
+
+(map? '(1 2 3))
+;;=> false
+
+(map? #{:a :b :c})
+;;=> false
+
+
+9.mapcat
+
+(mapcat f)(mapcat f & colls)
+
+Returns the result of applying concat to the result of applying map
+to f and colls.  Thus function f should return a collection. Returns
+a transducer when no collections are provided
+
+ex.
+
+user=> (mapcat reverse [[3 2 1 0] [6 5 4] [9 8 7]])
+(0 1 2 3 4 5 6 7 8 9)
+
+;; Using map:
+(map #(repeat 2 %) [1 2])
+;; => ((1 1) (2 2))
+
+;; Using mapcat:
+(mapcat #(repeat 2 %) [1 2])
+;; => (1 1 2 2)
+
+10.reduce
+
+(reduce f coll)(reduce f val coll)
+
+f should be a function of 2 arguments. If val is not supplied,
+returns the result of applying f to the first 2 items in coll, then
+applying f to that result and the 3rd item, etc. If coll contains no
+items, f must accept no arguments as well, and reduce returns the
+result of calling f with no arguments.  If coll has only 1 item, it
+is returned and f is not called.  If val is supplied, returns the
+result of applying f to val and the first item in coll, then
+applying f to that result and the 2nd item, etc. If coll contains no
+items, returns val and f is not called.
+
+
+(reduce + [1 2 3 4 5])  ;;=> 15
+(reduce + [])           ;;=> 0
+(reduce + [1])          ;;=> 1
+(reduce + [1 2])        ;;=> 3
+(reduce + 1 [])         ;;=> 1
+(reduce + 1 [2 3])      ;;=> 6
+
+;; Converting a vector to a set:
+
+(reduce conj #{} [:a :b :c])
+;; => #{:a :c :b}
+
+;;fibonacci numbers using reduce
+
+(prn (reduce
+       (fn [a b] (conj a (+' (last a) (last (butlast a)))))
+       [0 1]
+       (range 48)))
+       
+;;prime numbers using reduce
+(prn (reduce
+       (fn [primes number]
+         (if (some zero? (map (partial mod number) primes))
+           primes
+           (conj primes number)))
+       [2]
+       (take 100 (iterate inc 3))))
+
+11.reduced?
+
+(reduced? x)
+
+Returns true if x is the result of a call to reduced
+
+ex.
+
+(reduced? :foo)
+;;=> false
+
+(reduced? (reduced :foo))
+;;=> true
+
+(reduced? (clojure.lang.Reduced. :foo))
+;;=> true
+
+12.reduced
+
+(reduced x)
+
+Wraps x in a way such that a reduce will terminate with the value x
+
+ex.
+
+;; Suppose you want to short-circuit a sum like:
+(reduce (fn [a v] (+ a v)) (range 10))
+;;=> 45
+
+;; So that it returns the sum of the integers if less than 100:
+(reduce (fn [a v] (if (< a 100) (+ a v) (reduced :big))) (range 10))
+;;=> 45
+
+;; But the keyword :big otherwise:
+(reduce (fn [a v] (if (< a 100) (+ a v) (reduced :big))) (range 20))
+;;=> :big
+
+;; The value returned by (reduced :big) short-circuits the reduction so that 
+;; it returns the wrapped value without ranging over the entire sequence.
+;; This is useful for infinite lazy sequences:
+(reduce (fn [a v] (if (< a 100) (+ a v) (reduced :big))) (range))
+;;=>:big
+
+;; Which would otherwise not terminate.
+
+13.mod 
+
+(mod num div)
+
+Modulus of num and div. Truncates toward negative infinity.
+
+ex.
+
+user=> (mod 10 5)
+0
+user=> (mod 10 6)
+4
+user=> (mod 10 10)
+0
+
+user=> (mod 10 -1)
+0
+user=> (mod -10 3)
+2
+user=> (rem -10 3)
+-1
+user=> (mod 10 -3)
+-2
+user=> (mod -10 -3)
+-1
+user=> (mod 10 3)
+
+14.partial
+
+(partial f)(partial f arg1)(partial f arg1 arg2)(partial f arg1 arg2 arg3)(partial f arg1 arg2 arg3 & more)
+
+Takes a function f and fewer than the normal arguments to f, and
+returns a fn that takes a variable number of additional args. When
+called, the returned function calls f with args + additional args.
+
+ex.
+
+user=> (def hundred-times (partial * 100))
+#'user/hundred-times
+
+user=> (hundred-times 5)
+500
+
+user=> (hundred-times 4 5 6)
+12000
+
+user=> (def add-hundred (partial + 100))
+#'user/add-hundred
+
+user=> (add-hundred 5)
+105
+
+15.cons
+
+(cons x seq)
+
+Returns a new seq where x is the first element and seq is
+  the rest.
+  
+ex.
+
+;; prepend 1 to a list
+(cons 1 '(2 3 4 5 6))
+;;=> (1 2 3 4 5 6)
+
+;; notice that the first item is not expanded
+(cons [1 2] [4 5 6])
+;;=> ([1 2] 4 5 6)
+
+16.assoc
+
+(assoc map key val)(assoc map key val & kvs)
+
+assoc[iate]. When applied to a map, returns a new map of the
+same (hashed/sorted) type, that contains the mapping of key(s) to
+val(s). When applied to a vector, returns a new vector that
+contains val at index. Note - index must be <= (count vector).
+
+ex.
+
+(assoc {} :key1 "value" :key2 "another value")
+;;=> {:key2 "another value", :key1 "value"}
+
+;; Here we see an overwrite by a second entry with the same key
+(assoc {:key1 "old value1" :key2 "value2"} 
+        :key1 "value1" :key3 "value3")
+;;=> {:key3 "value3", :key2 "value2", :key1 "value1"}
+
+17.assoc-in
+
+assoc-in m [k & ks] v)
+
+Associates a value in a nested associative structure, where ks is a
+sequence of keys and v is the new value and returns a new nested structure.
+If any levels do not exist, hash-maps will be created.
+
+ex.
+
+(def users [{:name "James" :age 26}  {:name "John" :age 43}])
+
+;; update the age of the second (index 1) user 
+(assoc-in users [1 :age] 44)
+;;=> [{:name "James", :age 26} {:name "John", :age 44}]
+
+;; insert the password of the second (index 1) user
+(assoc-in users [1 :password] "nhoJ")
+;;=> [{:name "James", :age 26} {:password "nhoJ", :name "John", :age 43}]
+
+;; create a third (index 2) user
+;; Also (assoc m 2 {...}) or (conj m {...})
+(assoc-in users [2] {:name "Jack" :age 19})  
+;;=> [{:name "James", :age 26} {:name "John", :age 43} {:name "Jack", :age 19}]
+
+;; can be used to update a mutable item.
+(def ppl (atom {"persons" {"joe" {:age 1}}}))
+(swap! ppl assoc-in ["persons" "bob"] {:age 11})
+
+@ppl
+;;=> {"persons" {"joe" {:age 1}, "bob" {:age 11}}}
+
+18.update-in
+
+(update-in m ks f & args)
+
+'Updates' a value in a nested associative structure, where ks is a
+sequence of keys and f is a function that will take the old value
+and any supplied args and return the new value, and returns a new
+nested structure.  If any levels do not exist, hash-maps will be
+created.
+
+ex.
+
+(def users [{:name "James" :age 26}  {:name "John" :age 43}])
+;;=> #'user/users
+
+;; similar to assoc-in but does not simply replace the item.
+;; the specified function is performed on the matching item.
+;; here the age of the second (index 1) user is incremented.
+(update-in users [1 :age] inc)
+;;=> [{:name "James", :age 26} {:name "John", :age 44}]
+
+user=> (update-in {:a {:b 3}} [:a :b] inc)
+
+;;=> {:a {:b 4}}
+
+
+(def m {:1 {:value 0, :active false}, :2 {:value 0, :active false}})
+
+(update-in m [:1] assoc :value 1 :active true)
+;;=>{:1 {:value 1, :active true}, :2 {:value 0, :active false}}
+
+19.update
+
+(update m k f)(update m k f x)(update m k f x y)(update m k f x y z)(update m k f x y z & more)
+
+'Updates' a value in an associative structure, where k is a
+key and f is a function that will take the old value
+and any supplied args and return the new value, and returns a new
+structure.  If the key does not exist, nil is passed as the old value.
+
+ex.
+
+(def p {:name "James" :age 26})
+;;=> #'user/p
+
+(update p :age inc)
+;;=> {:name "James", :age 27}
+
+;; remember, the value of p hasn't changed!
+(update p :age + 10)
+;;=> {:name "James", :age 36}
+
+;; Here we see that the keyed object is 
+;; the first argument in the function call.
+;; i.e. :age (- 26 10) => 16
+(update p :age - 10)
+;;=> {:name "James", :age 16}
+
+20.fnil
+
+(fnil f x)(fnil f x y)(fnil f x y z)
+
+Takes a function f, and returns a function that calls f, replacing
+a nil first argument to f with the supplied value x. Higher arity
+versions can replace arguments in the second and third
+positions (y, z). Note that the function f can take any number of
+arguments, not just the one(s) being nil-patched.
+
+ex.
+
+;; a function that expects a non-nil value
+(defn say-hello [name] (str "Hello " name))
+;;=> #'user/say-hello
+
+;; fnil lets you create another function with a default
+;; arg in case it is passed a nil
+(def say-hello-with-defaults (fnil say-hello "World"))
+;;=> #'user/say-hello-with-defaults
+
+;; the happy path works as you would expect
+(say-hello-with-defaults "Sir")
+;;=> "Hello Sir"
+
+;; but in the case that the function is passed a nil it will use the 
+;; default supplied to fnil
+(say-hello-with-defaults nil)
+;;=> "Hello World"
+
+;; But if we use fnil it works:
+(update-in {:a 1} [:b] (fnil inc 0))
+;;=> {:b 1, :a 1}
+
+21.filter
+
+(filter pred)(filter pred coll)
+
+Returns a lazy sequence of the items in coll for which
+(pred item) returns logical true. pred must be free of side-effects.
+Returns a transducer when no collection is provided.
+
+ex.
+
+(filter even? (range 10))
+;;=> (0 2 4 6 8)
+
+(filter #(= (count %) 1)
+  ["a" "aa" "b" "n" "f" "lisp" "clojure" "q" ""])
+;;=> ("a" "b" "n" "f" "q")
+
+;; Used without a collection, filter will create a transducer:
+(def xf (filter odd?))
+
+;; We can now apply this transducer to a sequence:
+(transduce xf conj (range 10))
+;; => [1 3 5 7 9]
+
+;;filter a map on its values
+(filter (comp #{2 3} last) {:x 1 :y 2 :z 3})
+;;=> ([:y 2] [:z 3])
+
+;; That's how to get everything from a seq that is not nil;
+(filter some? '(1 nil [] :a nil))
+=> (1 [] :a)
+
+22.filterv
+
+(filterv pred coll)
+
+Returns a vector of the items in coll for which
+(pred item) returns logical true. pred must be free of side-effects.
+
+ex.
+
+;; very similar to filter but returns a vector
+(filterv even? (range 10))
+;;=> [0 2 4 6 8]
+
+23.some-fn
+
+(some-fn p)(some-fn p1 p2)(some-fn p1 p2 p3)(some-fn p1 p2 p3 & ps)
+
+Takes a set of predicates and returns a function f that returns the first logical true value
+returned by one of its composing predicates against any of its arguments, else it returns
+logical false. Note that f is short-circuiting in that it will stop execution on the first
+argument that triggers a logical true result against the original predicates.
+
+ex.
+
+user=> ((some-fn even?) 1)
+false
+user=> ((some-fn even?) 2)
+true
+user=> ((some-fn even?) 1 2)
+true
+
+24.every-pred 
+
+(every-pred p)(every-pred p1 p2)(every-pred p1 p2 p3)(every-pred p1 p2 p3 & ps)
+
+Takes a set of predicates and returns a function f that returns true if all of its
+composing predicates return a logical true value against all of its arguments, else it returns
+false. Note that f is short-circuiting in that it will stop execution on the first
+argument that triggers a logical false result against the original predicates.
+
+ex.
+
+(prn ((every-pred number? odd?) 1 2 3))
+(prn ((every-pred string? (comp (partial > 5) count)) "abc"))
+(prn ((every-pred string? (comp (partial > 5) count)) "abcdef"))
+
+25.comp
+
+(comp)(comp f)(comp f g)(comp f g & fs)
+
+Takes a set of functions and returns a fn that is the composition
+of those fns.  The returned fn takes a variable number of args,
+applies the rightmost of fns to the args, the next
+fn (right-to-left) to the result, etc.
+
+ex.
+
+(def concat-and-reverse (comp (partial apply str) reverse str)) 
+;; #'user/concat-and-reverse
+
+(concat-and-reverse "hello" "clojuredocs")
+;;=> "scoderujolcolleh"
+
+((comp str +) 8 8 8)   
+;;=> "24"
+
+(map
+   (comp - (partial + 3) (partial * 2))
+       [1 2 3 4])
+;;=>  (-5 -7 -9 -11)
+
+(filter (comp not zero?) [0 1 0 2 0 3 0 4])
+;;=> (1 2 3 4)
+
+; Split a number into sequence of it's digits
+((comp (partial map (comp read-string str)) str) 33)
+;;=> (3 3)
+
+26.transduce
+
+(transduce xform f coll)(transduce xform f init coll)
+
+reduce with a transformation of f (xf). If init is not
+supplied, (f) will be called to produce it. f should be a reducing
+step function that accepts both 1 and 2 arguments, if it accepts
+only 2 you can add the arity-1 with 'completing'. Returns the result
+of applying (the transformed) xf to init and the first item in coll,
+then applying xf to that result and the 2nd item, etc. If coll
+contains no items, returns init and f is not called. Note that
+certain transforms may inject or skip items.
+
+ex.
+
+;; First, define a transducer for producing the first ten odd numbers:
+(def xf (comp (filter odd?) (take 10)))
+
+;; We can then apply this transducer in different ways using transduce.
+
+;; Get the numbers as a sequence:
+
+(transduce xf conj (range))
+;;=> [1 3 5 7 9 11 13 15 17 19]
+
+;; Or sum them:
+
+(transduce xf + (range))
+;; => 100
+
+;; ... with an initializer:
+
+(transduce xf + 17 (range))
+;; => 117
+
+;; Or concatenate them to a string:
+
+(transduce xf str (range))
+;; => "135791113151719"
+
+27.flatten
+
+(flatten x)
+
+Takes any nested combination of sequential things (lists, vectors,
+etc.) and returns their contents as a single, flat lazy sequence.
+(flatten nil) returns an empty sequence.
+
+ex.
+
+user=> (flatten [1 [2 3]])
+(1 2 3)
+
+user=> (flatten '(1 2 3))
+(1 2 3)
+
+user=> (flatten '(1 2 [3 (4 5)])) 
+(1 2 3 4 5)
+
+user=> (flatten nil)
+()
+
+; Attention with stuff which is not a sequence
+
+user=> (flatten 5)
+()
+
+user=> (flatten {:name "Hubert" :age 23})
+()
+
+; Workaround for maps
+
+user=> (flatten (seq {:name "Hubert" :age 23}))
+(:name "Hubert" :age 23)
+
+28.seq
+
+(seq coll)
+
+Returns a seq on the collection. If the collection is
+empty, returns nil.  (seq nil) returns nil. seq also works on
+Strings, native Java arrays (of reference types) and any objects
+that implement Iterable. Note that seqs cache values, thus seq
+should not be used on any Iterable whose iterator repeatedly
+returns the same mutable object.
+
+ex.
+
+(seq '(1))  ;;=> (1)
+(seq [1 2]) ;;=> (1 2)
+(seq "abc") ;;=> (\a \b \c)
+
+;; Corner cases
+(seq nil)   ;;=> nil
+(seq '())   ;;=> nil
+
+;; (seq x) is the recommended idiom for testing if a collection is not empty
+(every? seq ["1" [1] '(1) {:1 1} #{1}])
+;;=> true
+
+(seq {:key1 "value1" :key2 "value2"})
+;;=> ([:key2 "value 2"] [:key1 "value 1"])
+
+
+29.into
+
+(into)(into to)(into to from)(into to xform from)
+
+Returns a new coll consisting of to-coll with all of the items of
+from-coll conjoined. A transducer may be supplied.
+
+ex.
+
+; Maps can be constructed from a sequence of 2-vectors or a sequence 
+; of maps
+user=> (into (sorted-map) [ [:a 1] [:c 3] [:b 2] ] )
+{:a 1, :b 2, :c 3}
+
+;impl apply merge
+user=> (into {:x 4} [{:a 1} {:b 2} {:c 3}])
+
+{:x 4, :a 1, :b 2, :c 3}
+
+; When maps are the input source, they convert into an unordered sequence 
+; of key-value pairs, encoded as 2-vectors
+user=> (into [] {1 2, 3 4})
+[[1 2] [3 4]]
+
+; Items are conj'ed one at a time, which puts them at the head of 
+; the destination list
+user=> (into () '(1 2 3))
+(3 2 1)
+
+; This does not happen for a vector, however, due to the behavior of conj:
+user=> (into [1 2 3] '(4 5 6))
+[1 2 3 4 5 6]
+
+
+30.conj
+
+(conj coll x)(conj coll x & xs)
+
+conj[oin]. Returns a new collection with the xs
+'added'. (conj nil item) returns (item).  The 'addition' may
+happen at different 'places' depending on the concrete type.
+
+ex.
+
+;; notice that conjoining to a vector is done at the end
+(conj [1 2 3] 4)
+;;=> [1 2 3 4]
+
+;; notice conjoining to a list is done at the beginning
+(conj '(1 2 3) 4)
+;;=> (4 1 2 3)
+
+(conj nil 3 4)
+;;=> (3 4)
+
+31.disj
+
+(disj set)(disj set key)(disj set key & ks)
+
+disj[oin]. Returns a new set of the same (hashed/sorted) type, that
+does not contain key(s).
+
+ex.
+
+user=> (disj #{1 2 3}) ; disjoin nothing 
+#{1 2 3} 
+
+user=> (disj #{1 2 3} 2) ; disjoin 2
+#{1 3} 
+
+user=> (disj #{1 2 3} 4) ; disjoin non-existent item
+#{1 2 3} 
+
+user=> (disj #{1 2 3} 1 3) ; disjoin several items at once
+#{2}
+
+32. ->
+
+(-> x & forms)
+
+Threads the expr through the forms. Inserts x as the
+second item in the first form, making a list of it if it is not a
+list already. If there are more forms, inserts the first form as the
+second item in second form, etc.
+
+ex.
+
+;; Use of `->` (the "thread-first" macro) can help make code
+;; more readable by removing nesting. It can be especially
+;; useful when using host methods:
+
+;; Arguably a bit cumbersome to read:
+user=> (first (.split (.replace (.toUpperCase "a b c d") "A" "X") " "))
+"X"
+
+;; Perhaps easier to read:
+user=> (-> "a b c d" 
+           .toUpperCase 
+           (.replace "A" "X") 
+           (.split " ") 
+           first)
+"X"
+
+
+;; It can also be useful for pulling values out of deeply-nested
+;; data structures:
+user=> (def person 
+            {:name "Mark Volkmann"
+             :address {:street "644 Glen Summit"
+                       :city "St. Charles"
+                       :state "Missouri"
+                       :zip 63304}
+             :employer {:name "Object Computing, Inc."
+                        :address {:street "12140 Woodcrest Dr."
+                                  :city "Creve Coeur"
+                                  :state "Missouri"
+                                  :zip 63141}}})
+ 
+user=> (-> person :employer :address :city)
+"Creve Coeur"
+
+;; same as above, but with more nesting
+user=> (:city (:address (:employer person)))
+"Creve Coeur"
+
+(-> 5 (+ 3) (/ 2) (- 1)) will return 8
+
+33. ->>
+
+(->> x & forms)
+
+Threads the expr through the forms. Inserts x as the
+last item in the first form, making a list of it if it is not a
+list already. If there are more forms, inserts the first form as the
+last item in second form, etc.
+
+ex.
+
+;; An example of using the "thread-last" macro to get
+;; the sum of the first 10 even squares.
+user=> (->> (range)
+            (map #(* % %))
+            (filter even?)
+            (take 10)
+            (reduce +))
+1140
+
+;; This expands to:
+user=> (reduce +
+               (take 10
+                     (filter even?
+                             (map #(* % %)
+                                  (range)))))
+1140
+
+
+user=> (def c 5)
+user=> (->> c (+ 3) (/ 2) (- 1))                          
+3/4
+
+;; and if you are curious why
+user=> (use 'clojure.walk)
+user=> (macroexpand-all '(->> c (+ 3) (/ 2) (- 1)))
+(- 1 (/ 2 (+ 3 c)))
+
+;; let's compare thread first (->) and thread last ( ->> )
+user=> (macroexpand '(-> 0 (+ 1) (+ 2) (+ 3)))
+(+ (+ (+ 0 1) 2) 3)
+user=> (macroexpand '(->> 0 (+ 1) (+ 2) (+ 3)))
+(+ 3 (+ 2 (+ 1 0)))
+
+
+34.when-let
+
+(when-let bindings & body)
+
+bindings => binding-form test
+When test is true, evaluates body with binding-form bound to the value of test
+ 
+ex.
+
+;; Very useful when working with sequences. Capturing the return value 
+;; of `seq` brings a performance gain in subsequent `first`/`rest`/`next`
+;; calls. Also the block is guarded by `nil` punning.
+
+(defn drop-one
+  [coll]
+  (when-let [s (seq coll)]
+    (rest s)))
+
+user=> (drop-one [1 2 3])
+(2 3)
+user=> (drop-one [])
+nil
+
+;; when-let multiple bindings version
+
+(defmacro when-let*
+  ([bindings & body]
+   (if (seq bindings)
+     `(when-let [~(first bindings) ~(second bindings)]
+        (when-let* ~(drop 2 bindings) ~@body))
+     `(do ~@body))))
+
+
+(when-let* [a 1 
+            b 2 
+            c (+ a b)]
+           (println "yeah!")
+           c)
+;;=>yeah!
+;;=>3
+
+(when-let* [a 1 
+            b nil 
+            c 3]
+            (println "damn! b is nil")
+            a)
+;;=>nil
+
+35.sorted-map
+
+(sorted-map & keyvals)
+
+keyval => key val
+Returns a new sorted map with supplied mappings.  If any keys are
+equal, they are handled as if by repeated uses of assoc.
+
+ex.
+
+;; Sorted maps are sorted by their keys, not their values.
+
+user=> (sorted-map :z 0, :a 28, :b 35)
+{:a 28, :b 35, :z 0}
+user=> (into (sorted-map) {:a 2 :b 1})
+{:a 2, :b 1}
+
+; sorting on integer keys
+; also notice how each pair becomes a `MapEntry` ('key' 'val')
+(into (sorted-map) [[23 :x] [17 :y]])
+;;=> {17 :y, 23 :x}
+
+;; Sort hash map by it's keys
+(def data {"k" 11 "z" 12 "a" 13 "d" 14 })
+
+(into (sorted-map) (sort-by first (seq data)))
+
+;;=> {"a" 13, "d" 14, "k" 11, "z" 12}
+
+36.hash-map
+
+(hash-map)(hash-map & keyvals)
+
+keyval => key val
+Returns a new hash map with supplied mappings.  If any keys are
+equal, they are handled as if by repeated uses of assoc.
+
+ex.
+
+;; sending a key more times, will remap it to the last value
+user=> (hash-map :key1 1, :key1 2) 
+{:key1 2} 
+
+user=> (map #(hash-map % 0) (seq "abcdefgh"))
+({\a 0} {\b 0} {\c 0} {\d 0} {\e 0} {\f 0} {\g 0} {\h 0}) 
+
+user=> (apply hash-map (.split "a 1 b 2 c 3" " "))
+{"a" "1", "b" "2", "c" "3"}
+
+37.array-map
+
+(array-map)(array-map & keyvals)
+
+Constructs an array-map. If any keys are equal, they are handled as
+if by repeated uses of assoc.
+
+ex.
+
+user=> (array-map [1 2] [3 4 5])
+{[1 2] [3 4 5]}
+
+user=> (array-map :a 10)
+{:a 10}
+
+user=> (array-map :a 10 :b 20)
+{:a 10 :b 20}
+
+user=> (apply array-map [:a 10 :b 20 :c 30])
+{:a 10 :b 20 :c 30}
+
+user=> (apply assoc {} [:a 10 :b 20 :c 30]) ;same result using assoc
+{:a 10 :b 20 :c 30}
+
+user=> (assoc (array-map :foo 10 :bar 20) :baz 30)
+; => {:foo 10, :bar 20, :baz 30}
+ 
+
+38.dissoc
+
+(dissoc map)(dissoc map key)(dissoc map key & ks)
+
+dissoc[iate]. Returns a new map of the same (hashed/sorted) type,
+that does not contain a mapping for key(s).
+
+ex.
+
+(dissoc {:a 1 :b 2 :c 3}) ; dissoc nothing 
+;;=> {:a 1, :b 2, :c 3} 
+
+(dissoc {:a 1 :b 2 :c 3} :b) ; dissoc key :b
+;;=> {:a 1, :c 3} 
+
+(dissoc {:a 1 :b 2 :c 3} :d) ; dissoc not existing key
+;;=> {:a 1, :b 2, :c 3} 
+
+(dissoc {:a 1 :b 2 :c 3} :c :b) ; several keys at once
+;;=> {:a 1} 
+
+;; There is no (dissoc-in) analogous to (get-in) or (assoc-in), but 
+;; you can achieve a similar effect using (update-in):
+
+(update-in {:a {:b {:x 3} :c 1}} [:a :b] dissoc :x)
+;;=> {:a {:b {}, :c 1}}
+
+;; Removing multiple from nested map
+(update-in {:a {:b {:x 3 :y 5} :c 1}} [:a :b] 
+       (fn [nested] (apply dissoc nested [:x :y] )) )
+=> {:a {:b {}, :c 1}} 
+
+
+39.split
+
+(split s re)(split s re limit)
+
+Splits string on a regular expression.  Optional argument limit is
+the maximum number of splits. Not lazy. Returns vector of the splits.
+
+ex.
+
+user=> (require '[clojure.string :as str])
+
+user=> (str/split "Clojure is awesome!" #" ")
+["Clojure" "is" "awesome!"]
+
+user=> (str/split "q1w2e3r4t5y6u7i8o9p0" #"\d+")
+["q" "w" "e" "r" "t" "y" "u" "i" "o" "p"]
+
+;; Note that the 'limit' arg is the maximum number of strings to
+;; return (not the number of splits)
+user=> (str/split "q1w2e3r4t5y6u7i8o9p0" #"\d+" 5)
+["q" "w" "e" "r" "t5y6u7i8o9p0"]
+
+;; to get back all the characters of a string, as a vector of strings:
+user=> (str/split " q1w2 " #"")
+[" " "q" "1" "w" "2" " "]
+;; Note: sequence, in contrast, would return characters.
+
+;; Using lookarounds (lookahead, lookbehind) one can keep the matching characters:
+user=> (str/split " something and ACamelName " #"(?=[A-Z])")
+[" something and " "A" "Camel" "Name "]
+
+;; If the pattern is not found, we get back the original string untouched:
+user=> (str/split "a" #"b")
+["a"]
+
+user=> (str/split " " #"b")
+[" "]
+
+user=> (str/split "" #"b")
+[""]
+
+;; If everything matches, an empty vector is returned!
+user=> (str/split "a" #"a")
+[]
+
+user=> (str/split "aaa" #"a")
+[]
+
+;; but:
+user=> (str/split "" #"")
+[""]
+
+40.pprint
+
+(pprint object)(pprint object writer)
+
+Pretty print object to the optional output writer. If the writer is not provided, 
+print the object to the currently bound value of *out*.
+
+ex.
+
+(def big-map (zipmap 
+                 [:a :b :c :d :e] 
+                 (repeat 
+                   (zipmap [:a :b :c :d :e] 
+                      (take 5 (range))))))
+;;=> #'user/big-map
+
+big-map
+;;=> {:a {:a 0, :b 1, :c 2, :d 3, :e 4}, :b {:a 0, :b 1, :c 2, :d 3, :e 4}, :c {:a 0, :b 1, :c 2, :d 3, :e 4}, :d {:a 0, :b 1, :c 2, :d 3, :e 4}, :e {:a 0, :b 1, :c 2, :d 3, :e 4}}
+
+(clojure.pprint/pprint big-map)
+;; {:e {:e 4, :d 3, :c 2, :b 1, :a 0},
+;;  :d {:e 4, :d 3, :c 2, :b 1, :a 0},
+;;  :c {:e 4, :d 3, :c 2, :b 1, :a 0},
+;;  :b {:e 4, :d 3, :c 2, :b 1, :a 0},
+;;  :a {:e 4, :d 3, :c 2, :b 1, :a 0}}
+;; nil
+
+41.defmacro
+
+(defmacro name doc-string? attr-map? [params*] body)(defmacro name doc-string? attr-map? ([params*] body) + attr-map?)
+
+Like defn, but the resulting function name is declared as a
+macro and will be used as a macro by the compiler when it is
+called.
+
+Macros are functions created at compile time.
+
+ex.
+
+(defmacro unless [pred a b]
+  `(if (not ~pred) ~a ~b))
+
+;; usage:
+
+(unless false (println "Will print") (println "Will not print"))
+
+
+(defmacro dbg[x]
+  `(let [x# ~x]
+      (println "dbg:" '~x "=" x#)
+       x#))
+(dbg (+ 2 3)) => dbg: (+ 2 3) = 5
+
+(defmacro infix-better [form]
+  `(~(second form) ~(first form) ~(nth form 2)))
+(prn (infix-better (10 + 2))) => 12 will be retuned.
+
+(defmacro infix-recur [form]
+  (cond (not (seq? form))
+        form
+        (= 1 (count form))
+        `(infix-recur ~(first form))
+        :else
+        (let [operator (second form)
+              first-arg (first form)
+              others (rest (rest form))]
+          `(~operator
+             (infix-recur ~first-arg)
+             (infix-recur ~others)))))
+(prn (infix-recur (10 + (2 * 3) + (4 * 5)))) => 36 will be returned.	
+
+42.macroexpand
+
+(macroexpand form)
+
+Repeatedly calls macroexpand-1 on form until it no longer
+represents a macro form, then returns it.  Note neither
+macroexpand-1 nor macroexpand expand macros in subforms.
+
+ex.
+
+user=> (macroexpand '(-> c (+ 3) (* 2)))    
+(* (+ c 3) 2)
+
+(defmacro infix-better [form]
+  `(~(second form) ~(first form) ~(nth form 2)))
+  
+(prn (macroexpand '(infix-better (10 + 5)))) => (+ 10 5) will be returned
+
+43.defrecord
+
+A record is a collection of fields, possibly of different data types typically in fix number and sequence. 
+
+(defrecord name [& fields] & opts+specs)
+
+(defrecord name [fields*]  options* specs*)
+ Options are expressed as sequential keywords and arguments (in any order).
+ Supported options:
+:load-ns - if true, importing the record class will cause the
+           namespace in which the record was defined to be loaded.
+           Defaults to false.
+           
+Defines Class/ctor + 2 factory functions : ->Foo, map->Foo
+           
+ex.
+
+;; from Stu's examples:
+
+(defrecord Person [fname lname address])
+-> user.Person
+
+(defrecord Address [street city state zip])
+-> user.Address
+
+(def stu (Person. "Stu" "Halloway"
+           (Address. "200 N Mangum"
+                      "Durham"
+                      "NC"
+                      27701)))
+-> #'user/stu
+
+(:lname stu)
+-> "Halloway"
+
+(-> stu :address :city)
+-> "Durham"
+
+(assoc stu :fname "Stuart")
+-> #:user.Person{:fname "Stuart", :lname "Halloway", :address #:user.Address{:street "200 N Mangum", :city "Durham", :state "NC", :zip 27701}}
+
+
+;; The map->Recordclass form works only in Clojure 1.3 or higher
+
+(defrecord Foo [a b])
+
+(defrecord Bar [a b c])
+
+(defrecord Baz [a c])
+
+(def f (Foo. 10 20))
+(println f)
+-> #user.Foo{:a 10, :b 20}
+
+(def r (map->Bar (merge f {:c 30})))
+(println r)
+-> #user.Bar{:a 10, :b 20, :c 30}
+
+(def z (map->Baz (merge f {:c 30})))
+(println z)
+-> #user.Baz{:a 10, :c 30, :b 20}
+
+;; Construct a record from a vector.
+(def info ["Carl" 20])
+
+(defrecord Person [name age])
+
+(apply ->Person info)
+-> #user.Person{:name "Carl", :age 20}
+
+;; This is particularly useful for mapping parsed CSV files to records
+(map #(apply ->Person %) parsed-csv-file)
+
+
+;; Destructuring a record
+
+(defrecord Cat [age weight])
+
+(def Jasper (Cat. 2 10))
+
+(defn about-cat [{:keys [age weight]}] 
+  (str age " yrs old and " weight " lbs"))
+
+(about-cat Jasper)
+->"2 yrs old and 10 lbs"
+
+(defrecord Person [name age])
+;;=> user.Person
+
+(def ertu (->Person "Ertu" 24))
+;;=> #'user/ertu
+
+(record? ertu)
+;;=> true
+
+(record? (assoc ertu :address "Somewhere"))
+;;=> true
+
+;;removing base fields converts record to regular map
+(record? (dissoc ertu :name))
+;;=> false
+
+
+44.deftype
+
+(deftype name [& fields] & opts+specs)
+
+(deftype name [fields*]  options* specs*)
+ Options are expressed as sequential keywords and arguments (in any order).
+ Supported options:
+:load-ns - if true, importing the type class will cause the
+           namespace in which the type was defined to be loaded.
+           Defaults to false.
+  
+Only Clojure code generation facility that gives you the access to actuual mutable feilds of the host.
+
+Mutable feilds on request-
+
+:volatile-mutable and :unsynchronized-mutable in clojure (NB. feilds marked mutable becomes private)
+         
+ex.
+
+;; define a couple of shape types
+(deftype Circle [radius])
+(deftype Square [length width])
+
+;; multimethod to calculate the area of a shape
+(defmulti area class)
+(defmethod area Circle [c]
+    (* Math/PI (* (.radius c) (.radius c))))
+(defmethod area Square [s]
+    (* (.length s) (.width s)))
+
+;; create a couple shapes and get their area
+(def myCircle (Circle. 10))
+(def mySquare (Square. 5 11))
+
+(area myCircle)
+(area mySquare)
+
+link
+
+(deftype Person [first-name last-name])
+
+;; use the factory function instead of the constructor, "Person.",
+;; to create a Person
+(->Person "John" "Smith")
+
+45.defprotocol
+
+(defprotocol name & opts+sigs)
+
+A protocol is a named set of named methods and their signatures:
+(defprotocol AProtocolName
+   ;optional doc string
+  "A doc string for AProtocol abstraction"
+  ;options
+ :extend-via-metadata true
+ ;method signatures
+  (bar [this a b] "bar docs")
+  (baz [this a] [this a b] [this a b c] "baz docs"))
+ No implementations are provided. Docs can be specified for the
+protocol overall and for each method. The above yields a set of
+polymorphic functions and a protocol object.
+
+ex.
+
+(defprotocol Fly
+  "A simple protocol for flying"
+  (fly [this] "Method to fly"))
+
+(defrecord Bird [name species]
+  Fly
+  (fly [this] (str (:name this) " flies...")))
+
+(extends? Fly Bird)
+-> true
+
+(def crow (Bird. "Crow" "Corvus corax"))
+
+(fly crow)
+-> "Crow flies..."
+
+
+(defrecord Nobel [this])
+(deftype Physics [this])
+
+(prn (= "Peace" (.this (Nobel. "Peace"))))
+(prn (= "Quontum" (.this (Physics. "Quontum"))))
+(prn (= "Peace" (:this (Nobel. "Peace"))))
+(prn (= nil (:this (Physics. "Quontum"))))
+
+(defprotocol Awards
+  "A defprotocol for award"
+  (present [this recipient]))
+
+(defrecord Oscar [catagory]
+  Awards
+  (present [this recipient]
+    (prn (str "You have received Oscar for " (:catagory this) " " recipient))))
+
+(= "You have received Oscar for Best Drone Jaykumar Oza" (with-out-str (present (Oscar. "Best Drone") "Jaykumar Oza")))
+
+(deftype Filmfare [catagory]
+  Awards
+  (present [this recipient]
+    (prn (str "You have received Filmfare for " (:catagory this) " " recipient))))
+
+(= "You have received Filmfare for Best Song Arijit Singh" (with-out-str (present (Filmfare. "Best Song") "Arijit Singh")))
+
+
+46.defmulti & defmethod (Runtime Polymorphism)
+
+(defmulti name docstring? attr-map? dispatch-fn & options)
+
+Creates a new multimethod with the associated dispatch function.
+The docstring and attr-map are optional.
+ Options are key-value pairs and may be one of:
+ :default
+ The default dispatch value, defaults to :default
+ :hierarchy
+ The value used for hierarchical dispatch (e.g. ::square is-a ::shape)
+ Hierarchies are type-like relationships that do not depend upon type
+inheritance. By default Clojure's multimethods dispatch off of a
+global hierarchy map.  However, a hierarchy relationship can be
+created with the derive function used to augment the root ancestor
+created with make-hierarchy.
+ Multimethods expect the value of the hierarchy option to be supplied as
+a reference type e.g. a var (i.e. via the Var-quote dispatch macro #'
+or the var special form).
+
+ex.
+
+(defn hello
+  ([] (prn "Hello World!"))
+  ([a] (prn (str "Hello you smart " a "!")))
+  ([a & more] (prn (str "Hello this Group " (apply str (interpose ", " (concat (list a) more))) " !"))))
+
+(hello)
+(hello "Jay")
+(hello "Jay" "Parth" "Ashu")
+
+(defmulti diet (fn [x] (:eater x)))
+(defmethod diet "veg" [a] (prn (str (:name a) " eats vegetables")))
+(defmethod diet "milk" [a] (prn (str (:name a) " drinks milk")))
+(diet {:name "Jay" :eater "veg"})
+(diet {:name "Bhumi" :eater "milk"})
+
+
+(deftype circle [radious])
+(deftype square [length width])
+
+;; multimethod to calculate the area of a shape
+(defmulti area class)
+(defmethod area circle [r]
+  (* Math/PI (* (.radious r) (.radious r))))
+(defmethod area square [s]
+  (* (.length s) (.width s)))
+
+(def myCircle (circle. 10))
+(def mySquare (square. 5 3))
+
+(prn "Area of circle is " (area myCircle))
+(prn "Area of square is " (area mySquare))
+
+
+47.defstruct
+
+(defstruct name & keys)
+
+Same as (def name (create-struct keys...))
+
+ex.
+
+user=> (defstruct person :name :age :height)
+#'user/person
+
+user=> (struct person "george" 22 115)
+{:name "george", :age 22, :height 115}
+
+
+48.dosync
+
+(dosync & exprs)
+
+Runs the exprs (in an implicit do) in a transaction that encompasses
+exprs and any nested calls.  Starts a transaction if none is already
+running on this thread. Any uncaught exception will abort the
+transaction and flow out of dosync. The exprs may be run more than
+once, but any effects on Refs will be atomic.
+
+ex.
+
+;; Create 2 bank accounts
+(def acc1 (ref 100))
+(def acc2 (ref 200))
+
+;; How much money is there?
+(println @acc1 @acc2)
+;; => 100 200
+
+;; Either both accounts will be changed or none
+(defn transfer-money [a1 a2 amount]
+  (dosync
+    (alter a1 - amount)
+    (alter a2 + amount)
+    amount)) ; return amount from dosync block and function (just for fun)
+
+;; Now transfer $20
+(transfer-money acc1 acc2 20)
+;; => 20
+
+;; Check account balances again
+(println @acc1 @acc2)
+;; => 80 220
+
+;; => We can see that transfer was successful
+
+
+49. references and types-
+
+The only thing in clojure that are muutable is references themselves, In controlled way.
+
+there are 3 type of references,
+
+* Vars - Isolate changes within threads
+* Refs - Share synchronous coordinated changes between threads
+* Agents - Share asynchronous independent changes between threads
+
+Software Transactional Memory System (STM)
+
+Clojure STM uses multiversion Concurrency Control (MVCC)
+
+Clojure STM supports Commute.
+
+* Agents  -  
+
+Manage independent state
+
+We send actions to agent using send or send-off. It completed that action and that will be the new state of agent.
+
+Agent state always accessible via deref/@
+
+Multi-threaded programming in clojure  - Sync / Dosync
+
+
+
+
+
+
+
+
+
+
