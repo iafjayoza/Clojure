@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# * Running Test Suit To Validate The Functions
+
+# This variable contains absolute path of this `parking_lot` script
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+
+$DIR/..
+mvn test
