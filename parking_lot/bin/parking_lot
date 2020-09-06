@@ -1,0 +1,21 @@
+#! /usr/bin/env bash
+# Added scripts to run the jar.
+# bin/parking_lot runs the program by 2 ways,
+# 1.It provide us with an interactive command prompt based shell where commands can be typed in.
+# 2.It takes an input file as an argument and prints the output.
+
+# This variable contains absolute path of this `parking_lot` script
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+
+echo -e "\nFOR INTERACTIVE COMMAND PROMPT BASED SHELL ENTER: 1\n\nTO READ THE COMMANDS FROM FILE ENTER: 2\n"
+read OPTION
+
+if [ "$OPTION" = 1 ];
+then
+       java -classpath $DIR/../lib/clojure-1.9.0.jar:$DIR/../lib/core.specs.alpha-0.1.24.jar:$DIR/../lib/spec.alpha-0.1.143.jar:$DIR/../target/parking_lot-1.0-SNAPSHOT.jar clojure.main $DIR/../src/main/resources/parkinglot/parkinglot_rules.clj  interactive-command-prompt
+elif [ "$OPTION" = 2 ];
+then
+       java -classpath $DIR/../lib/clojure-1.9.0.jar:$DIR/../lib/core.specs.alpha-0.1.24.jar:$DIR/../lib/spec.alpha-0.1.143.jar:$DIR/../target/parking_lot-1.0-SNAPSHOT.jar clojure.main $DIR/../src/main/resources/parkinglot/parkinglot_rules.clj $DIR/../functional_spec/fixtures/file_input.txt
+else
+       echo "Enter The Correct Option"
+fi

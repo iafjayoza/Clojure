@@ -1,0 +1,11 @@
+# * Installing dependencies
+# * Build/Compile
+# * Running Test Suit to validate
+
+# This variable contains absolute path of this `parking_lot` script
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+
+$DIR/..
+mvn eclipse:eclipse -DdownloadJavadocs=true -DdownloadSources=true -Declipse.useProjectReferences=false
+mvn generate-test-resources
+mvn clean install
